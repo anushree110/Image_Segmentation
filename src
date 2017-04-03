@@ -1,0 +1,266 @@
+import cv2
+import numpy as np
+import sys
+import math
+
+# Quick Sort Algorithm to sort the edge weights in non-decreasing order..
+def QuickSort_Array(graph_list):
+    QuickSort_Recursive(graph_list, 0, len(graph_list) - 1)
+
+
+def QuickSort_Recursive(graph_list, first, last):
+    if first < last:
+        iVal = Partition_Array(graph_list, first, last)
+
+        QuickSort_Recursive(graph_list, first, iVal - 1)
+        QuickSort_Recursive(graph_list, iVal + 1, last)
+
+
+def Partition_Array(graph_list, first, last):
+    pivot = graph_list[first][2]
+
+    left_pointer = first + 1
+    right_pointer = last
+
+    flag = False
+    while not flag:
+
+        while left_pointer <= right_pointer and graph_list[left_pointer][2] <= pivot:
+            left_pointer += 1
+
+        while graph_list[right_pointer][2] >= pivot and right_pointer >= left_pointer:
+            right_pointer -= 1
+
+        if right_pointer < left_pointer:
+            flag = True
+        else:
+            itemp = graph_list[left_pointer]
+            graph_list[left_pointer] = graph_list[right_pointer]
+            graph_list[right_pointer] = itemp
+
+    itemp = graph_list[first]
+    graph_list[first] = graph_list[right_pointer]
+    graph_list[right_pointer] = itemp
+
+    return right_pointer
+
+
+class Graph:
+    def __init__(self , img):    #default constructor
+        self.image = img
+        self.graph = []
+        self.height =  img.shape[0]
+        self.width = img.shape[1]
+        self.V = self.height*self.width
+
+    def addedge(self,x,y,z):
+        self.graph.append([x,y,z])
+
+    def __check_neighbour(self , row_ind, col_ind):
+        neighbour_list = []
+
+        # Checking for positioning of the pixel and assigning neighbours to the pixel based on the position
+        if row_ind == 0 and col_ind == 0:
+            neighbour_list.append((row_ind, col_ind+1))
+            neighbour_list.append((row_ind+1, col_ind))
+            neighbour_list.append((row_ind+1, col_ind+1))
+
+        elif row_ind == 0 and col_ind == self.width-1:
+            neighbour_list.append((row_ind, col_ind-1))
+            neighbour_list.append((row_ind+1, col_ind-1))
+            neighbour_list.append((row_ind+1, col_ind))
+
+        elif row_ind == self.height-1 and col_ind == 0:
+            neighbour_list.append((row_ind-1, col_ind))
+            neighbour_list.append((row_ind-1, col_ind+1))
+            neighbour_list.append((row_ind, col_ind+1))
+
+        elif row_ind == self.height-1 and col_ind == self.width-1:
+            neighbour_list.append((row_ind-1, col_ind))
+            neighbour_list.append((row_ind, col_ind-1))
+            neighbour_list.append((row_ind-1, col_ind-1))
+
+        elif row_ind == 0 and col_ind in range(1,self.width-1):
+            neighbour_list.append((row_ind, col_ind-1))
+            neighbour_list.append((row_ind, col_ind+1))
+            neighbour_list.append((row_ind+1 , col_ind))
+            neighbour_list.append((row_ind+1, col_ind-1))
+            neighbour_list.append((row_ind+1, col_ind+1))
+
+        elif col_ind == 0 and row_ind in range(1,self.height-1):
+            neighbour_list.append((row_ind-1, col_ind))
+            neighbour_list.append((row_ind+1, col_ind))
+            neighbour_list.append((row_ind-1, col_ind+1))
+            neighbour_list.append((row_ind, col_ind+1))
+            neighbour_list.append((row_ind+1, col_ind+1))
+
+        elif row_ind == self.height-1 and col_ind in range(1, self.width-1):
+            neighbour_list.append((row_ind, col_ind-1))
+            neighbour_list.append((row_ind, col_ind+1))
+            neighbour_list.append((row_ind-1, col_ind-1))
+            neighbour_list.append((row_ind-1, col_ind))
+            neighbour_list.append((row_ind-1, col_ind+1))
+
+        elif col_ind == self.width-1 and row_ind in range(1, self.height-1):
+            neighbour_list.append((row_ind, col_ind-1))
+            neighbour_list.append((row_ind-1, col_ind-1))
+            neighbour_list.append((row_ind-1, col_ind))
+            neighbour_list.append((row_ind+1, col_ind-1))
+            neighbour_list.append((row_ind+1, col_ind))
+
+        else:
+            neighbour_list.append((row_ind-1, col_ind-1))
+            neighbour_list.append((row_ind-1, col_ind))
+            neighbour_list.append((row_ind-1, col_ind+1))
+            neighbour_list.append((row_ind, col_ind-1))
+            neighbour_list.append((row_ind, col_ind+1))
+            neighbour_list.append((row_ind+1, col_ind-1))
+            neighbour_list.append((row_ind+1, col_ind))
+            neighbour_list.append((row_ind+1, col_ind+1))
+
+        return neighbour_list
+
+    def __assign_weight(self , row_ind , col_ind):
+        intensity_V = self.image[row_ind, col_ind]
+        V = np.ravel_multi_index((row_ind, col_ind), (self.height, self.width), order='C')
+        n_list = self.__check_neighbour(row_ind, col_ind)
+
+
+        for (row_n, col_n) in n_list:
+            intensity_V_n = self.image[row_n, col_n]
+            V_n = np.ravel_multi_index((row_n, col_n), (self.height, self.width), order='C')
+            intensity = np.int64(abs(np.int64(intensity_V) - np.int64(intensity_V_n)))
+            self.addedge(V, V_n, intensity)
+
+    def create_graph(self):
+        for i in range (0, self.height):
+            for j in range (0, self.width):
+                self.__assign_weight(i,j)
+
+
+def union(x, y, parent, rank, size_comp):
+    xroot = find(parent, x)
+    yroot = find(parent, y)
+
+    if rank[xroot] < rank[yroot]:
+        parent[xroot] = yroot
+        size_comp[yroot] += size_comp[xroot]
+
+    elif rank[xroot] > rank[yroot]:
+        parent[yroot] = xroot
+        size_comp[xroot] += size_comp[yroot]
+    else:
+        parent[yroot] = xroot
+        rank[xroot] += 1
+        size_comp[xroot] += size_comp[yroot]
+
+
+def find(parent, i):
+    if parent[i] == i:
+        return i
+    return find(parent, parent[i])
+
+def segmentation_image(g1, k):
+    sorted(g1.graph, key = lambda x: x[2])
+    #QuickSort_Array(g1.graph)
+    parent = {}
+    rank = {}
+    size_comp = {}
+    threshold = {}
+    for node in range(g1.V):
+        parent[node] = node
+        rank[node] = 0
+        size_comp[node] = 1
+    for i in range(g1.V):
+        threshold[i] = k
+
+    for edge in g1.graph:
+        p_u = find(parent, edge[0])
+        p_v = find(parent, edge[1])
+        if p_u != p_v:
+            if (edge[2] <= threshold[edge[0]] and edge[2] <= threshold[edge[1]]):
+                union(p_u, p_v, parent, rank, size_comp)
+                p_u = find(parent, p_u)
+                threshold[p_u] = edge[2] + (k/size_comp[p_u])
+
+    return parent
+
+
+def rgbcolor(h, f):
+    """Convert a color specified by h-value and f-value to an RGB
+    three-tuple."""
+    # q = 1 - f
+    # t = f
+    v = 1.0
+    s = 1.0
+    p = 0.0
+    if h == 0:
+        return v, f, p
+    elif h == 1:
+        return 1 - f, v, p
+    elif h == 2:
+        return p, v, f
+    elif h == 3:
+        return p, 1 - f, v
+    elif h == 4:
+        return f, p, v
+    elif h == 5:
+        return v, p, 1 - f
+
+def uniquecolors(n):
+    """Compute a list of distinct colors, ecah of which is
+    represented as an RGB three-tuple"""
+    hues = (360.0 / n * i for i in range(n))
+    hs = (math.floor(hue / 60) % 6 for hue in hues)
+    fs = (hue / 60 - math.floor(hue / 60) for hue in hues)
+    return [rgbcolor(h, f) for h, f in zip(hs, fs)]
+
+
+def plot_segmentation(img, parent_comp):
+    img_overlay = img.copy()
+    output = img.copy()
+    img_label = np.zeros((img.shape[0], img.shape[1]))
+    #img_overly = img_overlay[:, :, np.newxis*3]
+    colors_covered = {}
+    rgb_list = uniquecolors(16)
+    curr = 0
+    label_covered = {}
+    height, width = img.shape[0], img.shape[1]
+    values = set(parent_comp.values())
+    print (len(values))
+    for key, val in parent_comp.iteritems():
+        index =  np.unravel_index(key, (height, width))
+        row_ind = index[0]
+        col_ind = index[1]
+        if colors_covered.get(val) == None:
+            img_overlay[row_ind, col_ind, :] = list(rgb_list[curr%8])
+            colors_covered[val] = list(rgb_list[curr%8])
+            label_covered[val] = curr
+            img_label[row_ind, col_ind] = curr
+            curr = curr + 1
+        else:
+            img_overlay[row_ind, col_ind, :] = colors_covered.get(val)
+            img_label[row_ind, col_ind] = label_covered[val]
+    img_overlay =  np.multiply(img_overlay, 255)
+    cv2.addWeighted(img_overlay, 0.8, output, 1 - 0.5,
+                    0, output)
+    cv2.imshow("Output", img_overlay)
+    cv2.waitKey(0)
+
+
+if __name__ == "__main__":
+    '''C:\Users\shalini\Desktop\SEMESTER-3\Data Structures and Algorithms Lab\email-segmentation.jpg'''
+    img = cv2.imread('C:\Users\shalini\Desktop\SEMESTER-3\Data Structures and Algorithms Lab\img_1.png', cv2.IMREAD_GRAYSCALE)
+    #img = cv2.resize(img, (200,200))
+    blur = cv2.GaussianBlur(img,(199,199),0.5)     #Applying Gaussian Filter to remove Gaussian noise
+
+    cv2.imshow('anu mum', blur)
+    cv2.waitKey()
+
+    graph_image = Graph(blur)
+    graph_image.create_graph()
+    '''C:\Users\shalini\Desktop\SEMESTER-3\Data Structures and Algorithms Lab\email-segmentation.jpg'''
+    segment = segmentation_image(graph_image, 5)
+    img =  cv2.imread('C:\Users\shalini\Desktop\SEMESTER-3\Data Structures and Algorithms Lab\img_1.png', cv2.IMREAD_COLOR)
+    #img = cv2.resize(img, (200, 200))
+    plot_segmentation(img, segment)
